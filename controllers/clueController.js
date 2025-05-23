@@ -43,6 +43,15 @@ const createClue = async (req, res) => {
   }
 };
 
+const getAllClues = async (req, res) => {
+  try {
+    const clues = await Clue.find().sort({ foundAt: -1 }); // or .find({ user: req.user._id }) if needed
+    res.status(200).json(clues);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch clues' });
+  }
+};
+
 const updateClue = async (req, res) => {
   try {
     const clue = await Clue.findById(req.params.id);
@@ -81,6 +90,7 @@ const deleteClue = async (req, res) => {
 module.exports = {
   collectClue,
   getCluesByGame,
+  getAllClues,
   createClue,
   updateClue,
   deleteClue, 

@@ -1,5 +1,6 @@
-﻿require('dotenv').config();
-const path = require('path');
+﻿const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+
 const fs = require('fs');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -7,6 +8,13 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 const connectDB = require('./config/db');
+
+// ✅ Debug: Check loaded env variables
+console.log("✅ DEBUG - Stripe Key:", process.env.STRIPE_SECRET_KEY);
+console.log("✅ DEBUG - Cloudinary Cloud Name:", process.env.CLOUDINARY_CLOUD_NAME);
+console.log("✅ DEBUG - Cloudinary API Key:", process.env.CLOUDINARY_API_KEY);
+console.log("✅ DEBUG - Cloudinary API Secret:", process.env.CLOUDINARY_API_SECRET);
+console.log("✅ DEBUG - Mongo URI:", process.env.MONGO_URI);
 
 // Route Imports
 const userRoutes = require('./routes/userRoutes');
@@ -18,21 +26,18 @@ const adminRoutes = require('./routes/adminRoutes');
 const mediaRoutes = require('./routes/mediaRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const analyticsLogger = require('./middlewares/analyticsMiddleware');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
-// Cloudinary Config (if you're using it)
+// Cloudinary Config
 const cloudinary = require('cloudinary').v2;
 cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.CLOUD_API_KEY,
-  api_secret: process.env.CLOUD_API_SECRET
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Check Cloudinary keys
-console.log('Cloudinary Cloud Name:', process.env.CLOUD_NAME);
-console.log('Cloudinary API Key:', process.env.CLOUD_API_KEY);
-console.log('Cloudinary API Secret:', process.env.CLOUD_API_SECRET);
-
-// Ensure uploads directory exists
+// Ensure /uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
@@ -52,7 +57,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-// Connect to DB
+// Connect to MongoDB
 connectDB();
 
 // App Setup
@@ -61,18 +66,22 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
-// Route Mounting
+// Analytics Middleware
+app.use(analyticsLogger);
+
+// Mount Routes
 app.use('/api/users', userRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/clues', clueRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api', adminRoutes); // Admin routes (e.g. /api/admin/stats)
-app.use('/api', lobbyRoute);  // Lobby route
+app.use('/api', adminRoutes);
+app.use('/api', lobbyRoute);
 app.use('/api/media', mediaRoutes);
 app.use('/api/search', searchRoutes);
-app.use('/api/payments', paymentRoutes); // <-- Stripe payment route
+app.use('/api/payments', paymentRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
-// Standalone upload route using multer
+// Upload route
 app.post('/api/media/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
@@ -80,11 +89,10 @@ app.post('/api/media/upload', upload.single('file'), (req, res) => {
   res.status(200).json({ message: 'File uploaded successfully', fileUrl: `/uploads/${req.file.filename}` });
 });
 
-// Test Route
+// Health check route
 app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
-// Server Start
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// ✅ Export app for Vercel (instead of app.listen)
+module.exports = app;

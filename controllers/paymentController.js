@@ -1,35 +1,42 @@
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
 const Stripe = require('stripe');
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeKey = process.env.STRIPE_SECRET_KEY;
 
-// Create a Stripe Checkout session
-const createCheckoutSession = async (req, res) => {
+if (!stripeKey) {
+  console.error("❌ STRIPE_SECRET_KEY is missing in environment variables");
+  throw new Error("Stripe key is not defined");
+}
+
+const stripe = Stripe(stripeKey);
+
+// ✅ Stripe Checkout Session (recommended for full pages)
+exports.createCheckoutSession = async (req, res) => {
   try {
-    const { amount, productName } = req.body;
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      mode: 'payment',
       line_items: [
         {
           price_data: {
-            currency: 'aud',
+            currency: 'usd',
             product_data: {
-              name: productName,
+              name: 'Sunkane Lane Mystery Game Pass',
+              description: 'Access to full game session',
             },
-            unit_amount: amount * 100, // Stripe uses cents
+            unit_amount: 499, // $4.99 in cents
           },
           quantity: 1,
         },
       ],
-      mode: 'payment',
-      success_url: 'https://your-frontend.com/success',
-      cancel_url: 'https://your-frontend.com/cancel',
+      success_url: 'http://localhost:3000/payment-success',
+      cancel_url: 'http://localhost:3000/payment-cancel',
     });
 
-    res.status(200).json({ success: true, sessionId: session.id });
+    res.status(200).json({ url: session.url });
   } catch (error) {
-    console.error('Stripe Error:', error.message);
-    res.status(500).json({ success: false, message: 'Payment failed' });
+    console.error("❌ Stripe Checkout Session Error:", error.message);
+    res.status(500).json({ error: "Failed to create checkout session" });
   }
 };
-
-module.exports = { createCheckoutSession };

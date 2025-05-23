@@ -11,6 +11,7 @@ const {
   resetPassword
 } = require('../controllers/UserController'); // ✅ lowercase
 
+// Auth & User Profile routes
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/forgot-password', forgotPassword);
@@ -19,5 +20,10 @@ router.put('/me', authMiddleware, updateUserProfile);
 router.get('/me', authMiddleware, getMe);
 router.post('/character', authMiddleware, selectCharacter);
 router.put('/profile', authMiddleware, updateUserProfile);
+
+// ✅ Test route
+router.get('/test', (req, res) => {
+  res.json({ message: 'User route is working!' });
+});
 
 module.exports = router;
